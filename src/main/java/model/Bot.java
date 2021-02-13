@@ -1,5 +1,13 @@
 package model;
 
+import org.apache.http.HttpEntity;
+import org.apache.http.client.methods.CloseableHttpResponse;
+import org.apache.http.client.methods.HttpGet;
+import org.apache.http.impl.client.CloseableHttpClient;
+import org.apache.http.impl.client.HttpClients;
+import org.apache.http.util.EntityUtils;
+import org.json.JSONArray;
+import org.json.JSONObject;
 import org.telegram.telegrambots.bots.TelegramLongPollingBot;
 import org.telegram.telegrambots.meta.api.methods.AnswerCallbackQuery;
 import org.telegram.telegrambots.meta.api.methods.AnswerInlineQuery;
@@ -26,8 +34,17 @@ import java.util.logging.Logger;
 
 public class Bot extends TelegramLongPollingBot {
 
-    private static final String botUsername = System.getenv("botUsername");
     private static final String botToken = System.getenv("botToken");
+    private static String botUsername = null;
+
+    static {
+        try {
+            botUsername = getBotUsernameThroughToken();
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
+    }
+
     private static final Logger LOG = Logger.getLogger("ESBLOG");
     DuckDuckHandler duckDuckHandler = new DuckDuckHandler();
 
@@ -107,6 +124,30 @@ public class Bot extends TelegramLongPollingBot {
     @Override
     public String getBotUsername() {
         return botUsername;
+    }
+
+    /**
+     * Метод возвращает имя бота (username) на основе токена, выполняя запрос к api
+     * @return
+     * @throws IOException
+     */
+    public static String getBotUsernameThroughToken() throws IOException {
+
+        String telegramApiGetMeQuery = String.format("https://api.telegram.org/bot%s/getMe", botToken);
+        CloseableHttpClient httpClient = HttpClients.createDefault();
+
+        HttpGet request = new HttpGet(telegramApiGetMeQuery);
+        try (CloseableHttpResponse response = httpClient.execute(request)) {
+            int statusCode = response.getStatusLine().getStatusCode();
+
+            if (statusCode == 200) {
+                HttpEntity entity = response.getEntity();
+                JSONObject entityJson = new JSONObject(EntityUtils.toString(entity));
+                String username = entityJson.getJSONObject("result").getString("username");
+                return username;
+            }
+        }
+        return null;
     }
 
     /**
