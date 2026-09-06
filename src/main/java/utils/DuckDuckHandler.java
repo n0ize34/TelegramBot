@@ -24,8 +24,14 @@ public class DuckDuckHandler {
         String preparedQuery = String.format(duckduckUrl, URLEncoder.encode(query.replace(' ', '+'), StandardCharsets.UTF_8.toString()));
         HttpGet request = new HttpGet(preparedQuery);
         CloseableHttpResponse response = httpClient.execute(request);
-        HttpEntity entity = response.getEntity();
-        return parseResult(entity);
+        int statusCode = response.getStatusLine().getStatusCode();
+
+        if (statusCode == 200) {
+            HttpEntity entity = response.getEntity();
+            return parseResult(entity);
+        } else {
+            return returnNoResults();
+        }
     }
 
     private String parseResult(HttpEntity entity) {
@@ -34,13 +40,13 @@ public class DuckDuckHandler {
             result = EntityUtils.toString(entity);
         } catch (IOException e) {
             e.printStackTrace();
-            return "No results. Nothing was found.";
+            return returnNoResults();
         }
         JSONObject resultJson = new JSONObject(result);
         JSONArray topics = resultJson.getJSONArray("RelatedTopics");
 
         StringJoiner answer = new StringJoiner("\n\n");
-        answer.setEmptyValue("No results. Nothing was found.");
+        answer.setEmptyValue(returnNoResults());
         int topicCounter = 1;
         for (int i = 0; i < topics.length(); i++) {
             JSONObject curTopic = topics.getJSONObject(i);
@@ -62,4 +68,9 @@ public class DuckDuckHandler {
         url = url.replaceAll("\\)", "%29");
         answer.add(String.format(answerPattern, topicCounter, topic.get("Text").toString(), url));
     }
+
+    private String returnNoResults() {
+        return "No results. Nothing was found.";
+    }
+
 }
